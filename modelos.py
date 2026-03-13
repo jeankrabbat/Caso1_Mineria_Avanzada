@@ -10,6 +10,13 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 
 
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+
+
 def calcular_metricas(y_real, y_pred, nombre_modelo):
     mae = mean_absolute_error(y_real, y_pred)
     rmse = np.sqrt(mean_squared_error(y_real, y_pred))
@@ -202,3 +209,108 @@ def mostrar_modelos_predictivos(df):
             f"Se compararon {len(df_resultados)} modelos predictivos sobre la serie **{serie_col}**. "
             f"Según el criterio de **RMSE**, el mejor modelo fue **{mejor_modelo}**."
         )
+
+##Modelos de clasificación
+
+def mostrar_modelos_clasificacion(df, modelo, kfold, threshold):
+
+    st.subheader("Modelos de Clasificación")
+    st.caption("Comparación de modelos utilizando AUC y Cross-Validation")
+
+    columnas_numericas = df.select_dtypes(include="number").columns.tolist()
+
+    if len(columnas_numericas) < 2:
+        st.warning("Se necesitan al menos dos variables numéricas.")
+        return
+
+    target = st.selectbox(
+        "Seleccione la variable objetivo",
+        columnas_numericas
+    )
+
+    X = df[columnas_numericas].drop(columns=[target])
+    y = df[target]
+
+    # convertir a clasificación binaria
+    y = (y > y.median()).astype(int)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=42
+    )
+
+    modelos = {
+        "Logistic regression": LogisticRegression(max_iter=1000),
+        "Random forest": RandomForestClassifier(),
+        "SVM": SVC(probability=True)
+    }
+
+    resultados = []
+    curvas_roc = {}
+
+    for nombre, model in modelos.items():
+
+        model.fit(X_train, y_train)
+
+        y_prob = model.predict_proba(X_test)[:, 1]
+
+        # aplicar probabilidad de corte
+        y_pred = (y_prob >= threshold).astype(int)
+
+        auc = roc_auc_score(y_test, y_prob)
+
+        scores = cross_val_score(
+            model,
+            X,
+            y,
+            cv=kfold,
+            scoring="roc_auc"
+        )
+
+        resultados.append({
+            "Modelo": nombre,
+            "AUC": round(auc, 4),
+            "CV_AUC": round(scores.mean(), 4)
+        })
+
+        fpr, tpr, _ = roc_curve(y_test, y_prob)
+        curvas_roc[nombre] = (fpr, tpr)
+
+    df_resultados = pd.DataFrame(resultados).sort_values(by="AUC", ascending=False)
+
+    st.subheader("Comparación de modelos")
+    st.dataframe(df_resultados, use_container_width=True)
+
+    mejor = df_resultados.iloc[0]["Modelo"]
+
+    st.success(f"El mejor modelo según AUC fue: {mejor}")
+
+    # gráfico comparación
+    fig, ax = plt.subplots()
+
+    ax.barh(
+        df_resultados["Modelo"],
+        df_resultados["AUC"]
+    )
+
+    ax.set_xlabel("AUC")
+    ax.set_title("Comparación de modelos")
+
+    st.pyplot(fig)
+
+    # ROC curve
+    st.subheader("Curvas ROC")
+
+    fig2, ax2 = plt.subplots()
+
+    for nombre, (fpr, tpr) in curvas_roc.items():
+        ax2.plot(fpr, tpr, label=nombre)
+
+    ax2.plot([0,1],[0,1],"--")
+    ax2.set_xlabel("False Positive Rate")
+    ax2.set_ylabel("True Positive Rate")
+    ax2.legend()
+
+    st.pyplot(fig2)

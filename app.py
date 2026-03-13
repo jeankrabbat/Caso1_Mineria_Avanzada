@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from modelos import mostrar_modelos_predictivos
+from modelos import mostrar_modelos_predictivos, mostrar_modelos_clasificacion
 
 st.set_page_config(layout="wide")
 
@@ -157,4 +157,12 @@ if archivo is not None:
                 st.write("Probabilidad de corte:", threshold)
 
     with tab2:
-        mostrar_modelos_predictivos(df)
+        if tipo_modelo == "Clasificacion":
+            mostrar_modelos_clasificacion(
+                df,                 
+                modelo=modelo,
+                kfold=kfold,
+                threshold=threshold
+            )
+        else:
+            mostrar_modelos_predictivos(df)
