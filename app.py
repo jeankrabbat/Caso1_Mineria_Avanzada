@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from modelos import mostrar_modelos_predictivos
+
 st.set_page_config(layout="wide")
 
 st.title("Plataforma de Benchmarking Analítico")
@@ -19,140 +21,140 @@ st.info(
 
 st.divider()
 
-
 st.sidebar.header("Panel de configuracion")
 st.sidebar.subheader("Carga de datos")
 st.sidebar.caption("Importe un archivo en formato CSV para comenzar.")
-archivo = st.sidebar.file_uploader("Cargue aca su dataset", type = ["csv"])
+archivo = st.sidebar.file_uploader("Cargue aca su dataset", type=["csv"])
 
 if archivo is not None:
     df = pd.read_csv(archivo)
 
     st.success("Dataset cargado correctamente")
 
-    col1, col2, col3 = st.columns(3)
+    tab1, tab2 = st.tabs([
+        "Exploracion de datos",
+        "Implementacion de modelos predictivos"
+    ])
 
-    col1.metric("Filas", df.shape[0])
-    col2.metric("Columnas", df.shape[1])
-    col3.metric("Variables numéricas", df.select_dtypes(include="number").shape[1])
+    with tab1:
+        col1, col2, col3 = st.columns(3)
 
-    #Mostrar dataset
-    st.subheader("Vista previa del dataset")
-    st.caption("Se muestran las primeras filas del dataset cargado")
-    st.dataframe(df.head(), use_container_width=True)
+        col1.metric("Filas", df.shape[0])
+        col2.metric("Columnas", df.shape[1])
+        col3.metric("Variables numéricas", df.select_dtypes(include="number").shape[1])
 
-    st.subheader("Estadisticas descriptivas:")
-    st.dataframe(df.describe(), use_container_width= True)
+        st.subheader("Vista previa del dataset")
+        st.caption("Se muestran las primeras filas del dataset cargado")
+        st.dataframe(df.head(), use_container_width=True)
 
-    st.subheader("Visualización de variables numéricas")
-    st.caption("Seleccione una variable para explorar su distribución.")
+        st.subheader("Estadisticas descriptivas:")
+        st.dataframe(df.describe(), use_container_width=True)
 
-    columnas_numericas = df.select_dtypes(include="number").columns
+        st.subheader("Visualización de variables numéricas")
+        st.caption("Seleccione una variable para explorar su distribución.")
 
-    col1, col2 = st.columns([2,3])
+        columnas_numericas = df.select_dtypes(include="number").columns
 
-    with col1:
-        columna_numerica = st.selectbox(
-            "Seleccione una variable numérica",
-            columnas_numericas
-        )
-    col1, col2 = st.columns(2)
+        if len(columnas_numericas) > 0:
+            col1, col2 = st.columns([2, 3])
 
-    # HISTOGRAMA
-    with col1:
-        st.subheader("Distribución")
+            with col1:
+                columna_numerica = st.selectbox(
+                    "Seleccione una variable numérica",
+                    columnas_numericas,
+                    key="columna_numerica_exploracion"
+                )
 
-        fig, ax = plt.subplots(figsize=(5,3), facecolor="#0E1117")
+            col1, col2 = st.columns(2)
 
-        ax.hist(df[columna_numerica].dropna(), bins=20)
+            with col1:
+                st.subheader("Distribución")
 
-        ax.set_title(f"{columna_numerica}", color="white")
-        ax.set_xlabel(columna_numerica, color="white")
-        ax.set_ylabel("Frecuencia", color="white")
+                fig, ax = plt.subplots(figsize=(5, 3), facecolor="#0E1117")
+                ax.hist(df[columna_numerica].dropna(), bins=20)
+                ax.set_title(f"{columna_numerica}", color="white")
+                ax.set_xlabel(columna_numerica, color="white")
+                ax.set_ylabel("Frecuencia", color="white")
+                ax.tick_params(colors="white")
+                ax.set_facecolor("#0E1117")
 
-        ax.tick_params(colors="white")
-        ax.set_facecolor("#0E1117")
+                st.pyplot(fig)
 
-        st.pyplot(fig)
+            with col2:
+                st.subheader("Outliers")
 
-    # BOXPLOT
-    with col2:
-        st.subheader("Outliers")
+                fig2, ax2 = plt.subplots(figsize=(5, 3), facecolor="#0E1117")
+                ax2.boxplot(df[columna_numerica].dropna(), vert=False)
+                ax2.set_title(f"{columna_numerica}", color="white")
+                ax2.set_xlabel(columna_numerica, color="white")
+                ax2.tick_params(colors="white")
+                ax2.set_facecolor("#0E1117")
 
-        fig2, ax2 = plt.subplots(figsize=(5,3), facecolor="#0E1117")
+                st.pyplot(fig2)
 
-        ax2.boxplot(df[columna_numerica].dropna(), vert=False)
+            st.subheader("Matriz de correlación")
 
-        ax2.set_title(f"{columna_numerica}", color="white")
-        ax2.set_xlabel(columna_numerica, color="white")
+            corr = df.select_dtypes(include="number").corr()
 
-        ax2.tick_params(colors="white")
-        ax2.set_facecolor("#0E1117")
+            fig3, ax3 = plt.subplots(figsize=(8, 6), facecolor="#0E1117")
 
-        st.pyplot(fig2)
+            sns.heatmap(
+                corr,
+                annot=True,
+                cmap="coolwarm",
+                ax=ax3
+            )
 
-    st.subheader("Matriz de correlación")
+            ax3.tick_params(colors="white")
+            ax3.set_facecolor("#0E1117")
 
-    corr = df.corr()
+            st.pyplot(fig3)
+        else:
+            st.warning("El dataset no contiene variables numéricas para explorar.")
 
-    fig, ax = plt.subplots(figsize=(8,6), facecolor="#0E1117")
+        st.sidebar.divider()
+        st.sidebar.subheader("Configuración del modelo")
+        st.sidebar.caption("Seleccione el tipo de análisis y el algoritmo que desea utilizar.")
 
-    sns.heatmap(
-        corr,
-        annot=True,
-        cmap="coolwarm",
-        ax=ax
-    )
-
-    ax.tick_params(colors="white")
-    ax.set_facecolor("#0E1117")
-
-    st.pyplot(fig)
-
-    #Tipo de modelo
-
-    st.sidebar.divider()
-    st.sidebar.subheader("Configuración del modelo")
-    st.sidebar.caption("Seleccione el tipo de análisis y el algoritmo que desea utilizar.")
-
-    tipo_modelo = st.sidebar.selectbox(
-        "Seleccione el tipo",
-        ["Clasificacion","Series de tiempo"]
-    )
-
-    #Despues de seleccionar el tipo de problema
-
-    if tipo_modelo == "Clasificacion":
-        modelo = st.sidebar.selectbox(
-            "Seleccione el algoritmo",
-            ["Logistic regression", "Random forest", "SVM"]
-        )
-    if tipo_modelo == "Series de tiempo":
-        modelo = st.sidebar.selectbox(
-            "Seleccione el algoritmo",
-            ["ARIMA", "Holt-Winters", "Deep Learning"]
+        tipo_modelo = st.sidebar.selectbox(
+            "Seleccione el tipo",
+            ["Clasificacion", "Series de tiempo"]
         )
 
-    #Parametros
-    st.sidebar.divider()
-    st.sidebar.subheader("Parametros")
+        if tipo_modelo == "Clasificacion":
+            modelo = st.sidebar.selectbox(
+                "Seleccione el algoritmo",
+                ["Logistic regression", "Random forest", "SVM"]
+            )
+        else:
+            modelo = st.sidebar.selectbox(
+                "Seleccione el algoritmo",
+                ["ARIMA", "Holt-Winters", "Deep Learning"]
+            )
 
-    kfold = st.sidebar.slider("Numero de folds",2, 10, 5)
+        st.sidebar.divider()
+        st.sidebar.subheader("Parametros")
 
-    if tipo_modelo == "Clasificacion":
-        threshold = st.sidebar.slider("Probabilidad de corte", 0.0, 1.0, 0.5)
-    else:
-        threshold = None
-        st.sidebar.info("La probabilidad de corte aplica únicamente a modelos de clasificación.") 
+        kfold = st.sidebar.slider("Numero de folds", 2, 10, 5)
 
-    st.sidebar.divider()
+        if tipo_modelo == "Clasificacion":
+            threshold = st.sidebar.slider("Probabilidad de corte", 0.0, 1.0, 0.5)
+        else:
+            threshold = None
+            st.sidebar.info("La probabilidad de corte aplica únicamente a modelos de clasificación.")
 
-    if st.sidebar.button("🚀 Ejecutar modelo"):
-        st.success("Modelo ejecutado correctamente")
-        st.subheader("Configuración seleccionada:")
+        st.sidebar.divider()
 
-        st.write("Tipo de problema:", tipo_modelo)
-        st.write("Algortimo:", modelo)
-        st.write("Numero de folds:", kfold)
-        if threshold is not None:
-            st.write("Probabilidad de corte:", threshold)
+        if st.sidebar.button("🚀 Ejecutar modelo"):
+            st.success("Modelo ejecutado correctamente")
+            st.subheader("Configuración seleccionada:")
+
+            st.write("Tipo de problema:", tipo_modelo)
+            st.write("Algoritmo:", modelo)
+            st.write("Numero de folds:", kfold)
+
+            if threshold is not None:
+                st.write("Probabilidad de corte:", threshold)
+
+    with tab2:
+        mostrar_modelos_predictivos(df)
